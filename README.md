@@ -1,2 +1,2 @@
-# flaked
-Your climbing data for the year, flaked!
+# sent
+Your climbing data for the year, sent!
