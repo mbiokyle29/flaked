@@ -5,15 +5,24 @@ from operator import attrgetter
 
 from fastapi import FastAPI, File, UploadFile
 
-from sent.models import Climb, parse_grade
+from sent.models import (
+    Climb,
+    ClimbingStats,
+    ClimbingSummary,
+    parse_grade,
+)
 
 
-app = FastAPI(title='sent')
+app = FastAPI(
+    title='sent',
+    description='API for processing yearly climbing data',
+)
 
 
-@app.post('/send')
-def send(file: UploadFile = File(...)):
-    csv_reader = DictReader(StringIO(file.file.read().decode('utf8')))
+@app.post('/send', response_model=ClimbingSummary)
+async def send(file: UploadFile = File(...)):
+    csv_data = await file.read()
+    csv_reader = DictReader(StringIO(csv_data.decode('utf8')))
     climbs = [
         Climb(
             date=datetime.strptime(rec['Date'], '%Y-%m-%d').date(),
@@ -33,19 +42,19 @@ def send(file: UploadFile = File(...)):
         for rec in csv_reader
     ]
 
-    return {
-        'climbs': [c.dict() for c in climbs],
-        'stats': {
-            'total_feet': sum([c.length for c in climbs if c.length is not None]),
-            'total_climbs': len(climbs),
-            'avg_rating': sum([c.community_rating for c in climbs]) / max([1, len(climbs)]),
-            'hardest_boulder_problem': max(
-                [c for c in climbs if all(['boulder' in c.climbing_types, c.result not in {'fell/hung', ''}])],
-                key=attrgetter('grade'),
-            ),
-            'hardest_wall_problem': max(
-                [c for c in climbs if all(['boulder' not in c.climbing_types, c.result not in {'fell/hung', ''}])],
-                key=attrgetter('grade'),
-            )
-        }
-    }
+    boulder_problems = [c for c in climbs if all(['boulder' in c.climbing_types, c.result not in {'fell/hung', ''}])]
+    hardest_boulder = max(boulder_problems, key=attrgetter('grade')) if len(boulder_problems) > 0 else None
+
+    wall_problems = [c for c in climbs if all(['boulder' not in c.climbing_types, c.result not in {'fell/hung', ''}])]
+    hardest_wall = max(wall_problems, key=attrgetter('grade')) if len(wall_problems) > 0 else None
+
+    return ClimbingSummary(
+        climbs=climbs,
+        stats=ClimbingStats(
+            total_feet=sum([c.length for c in climbs if c.length is not None]),
+            total_climbs=len(climbs),
+            avg_rating=sum([c.community_rating for c in climbs]) / max([1, len(climbs)]),
+            hardest_boulder_problem=hardest_boulder,
+            hardest_wall_problem=hardest_wall,
+        )
+    )

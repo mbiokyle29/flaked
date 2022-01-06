@@ -36,6 +36,19 @@ class Climb(BaseModel):
     result: str
 
 
+class ClimbingStats(BaseModel):
+    total_feet: int
+    total_climbs: int
+    avg_rating: float
+    hardest_boulder_problem: Optional[Climb]
+    hardest_wall_problem: Optional[Climb]
+
+
+class ClimbingSummary(BaseModel):
+    climbs: List[Climb]
+    stats: ClimbingStats
+
+
 def parse_grade(grade):
 
     if grade.startswith('V'):
