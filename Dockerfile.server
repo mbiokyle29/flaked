@@ -9,4 +9,4 @@ RUN pip install --no-cache-dir --upgrade -r /app/requirements_dev.txt
 
 COPY ./sent /app/sent
 
-CMD ["uvicorn", "sent.app:app", "--host", "0.0.0.0", "--port", "80"]
+CMD ["uvicorn", "sent.app:app", "--host", "0.0.0.0", "--port", "80", "--reload", "--reload-dir", "/app/sent"]
