@@ -8,3 +8,11 @@ services:
       - 8080:80
     volumes:
       - ./sent:/app/sent
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    ports:
+      - 3000:3000
+    volumes:
+      - ./sent_app/src:/app/src

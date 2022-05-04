@@ -1,0 +1,3 @@
+- breakdown of climbs by type (with %s)
+- highest rated and lowest rated (stars)
+- projecting
