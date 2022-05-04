@@ -23,29 +23,52 @@ app = FastAPI(
 async def send(file: UploadFile = File(...)):
     csv_data = await file.read()
     csv_reader = DictReader(StringIO(csv_data.decode('utf8')))
-    climbs = [
-        Climb(
-            date=datetime.strptime(rec['Date'], '%Y-%m-%d').date(),
-            route=rec['Route'],
-            grade=parse_grade(rec['Rating']),
-            notes=rec['Notes'] if rec['Notes'] != '' else None,
-            uri=rec['URL'],
-            pitches=int(rec['Pitches']),
-            crag=rec['Location'],
-            community_rating=float(rec['Avg Stars']),
-            your_rating=float(rec['Your Stars']) if rec['Your Stars'] != '-1' else None,
-            climbing_style=rec['Style'].lower(),
-            climbing_types=[climbing_type.strip().lower() for climbing_type in rec['Route Type'].split(',')],
-            result=rec['Lead Style'].lower(),
-            length=int(rec['Length']) if rec['Length'] != '' else None,
-        )
-        for rec in csv_reader
-    ]
+    climbs = []
+    for rec in csv_reader:
+        climbing_types = [climbing_type.strip().lower() for climbing_type in rec['Route Type'].split(',')]
 
-    boulder_problems = [c for c in climbs if all(['boulder' in c.climbing_types, c.result not in {'fell/hung', ''}])]
+        # new style boulder
+        if 'boulder' in climbing_types and rec['Style'] in {'Attempt', 'Flash', 'Send'}:
+            climbing_style = 'boulder'
+            result = rec['Style'].lower()
+        else:
+            climbing_style = rec['Style'].lower()
+            result = rec['Lead Style'].lower()
+
+        # is it a send
+        sent = result in {'redpoint', 'send', 'flash', 'onsight', 'pinkpoint'} or climbing_style == 'solo'
+
+        climbs.append(
+            Climb(
+                date=datetime.strptime(rec['Date'], '%Y-%m-%d').date(),
+                route=rec['Route'],
+                grade=parse_grade(rec['Rating']),
+                notes=rec['Notes'] if rec['Notes'] != '' else None,
+                uri=rec['URL'],
+                pitches=int(rec['Pitches']),
+                crag=rec['Location'],
+                community_rating=float(rec['Avg Stars']),
+                your_rating=float(rec['Your Stars']) if rec['Your Stars'] != '-1' else None,
+                climbing_style=climbing_style,
+                climbing_types=climbing_types,
+                result=result,
+                length=int(rec['Length']) if rec['Length'] != '' else None,
+                sent=sent,
+            )
+        )
+
+    boulder_problems = [
+        c
+        for c in climbs
+        if 'boulder' in c.climbing_types and c.sent
+    ]
     hardest_boulder = max(boulder_problems, key=attrgetter('grade')) if len(boulder_problems) > 0 else None
 
-    wall_problems = [c for c in climbs if all(['boulder' not in c.climbing_types, c.result not in {'fell/hung', ''}])]
+    wall_problems = [
+        c
+        for c in climbs
+        if 'boulder' not in c.climbing_types and c.sent
+    ]
     hardest_wall = max(wall_problems, key=attrgetter('grade')) if len(wall_problems) > 0 else None
 
     return ClimbingSummary(

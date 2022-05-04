@@ -34,6 +34,7 @@ class Climb(BaseModel):
     climbing_types: List[str]
     climbing_style: str
     result: str
+    sent: bool
 
 
 class ClimbingStats(BaseModel):
